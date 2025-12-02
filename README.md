@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Problem Statement](#problem-statement)
 - [Solution Overview](#solution-overview)
@@ -590,7 +590,7 @@ The `/metrics` endpoint returns comprehensive evaluation metrics:
 - TypeScript/React codebase with Manifest V3
 - See `extension/README.md` for setup instructions
 
-## 🔒 Security Features
+## Security Features
 
 ### 1. Input Validation & Sanitization
 **Security Threat Mitigated:** SQL Injection, XSS, Command Injection
@@ -1092,18 +1092,6 @@ This is an academic project. For questions or contributions:
 3. Ensure backward compatibility
 4. Update documentation as needed
 
-## License
-
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- **Team CryptoC** - University of Southern Mississippi
-- **CSC 327: Secure Software Development** - Course project
-- **Instructor:** [Professor Name]
-- **Web3 Security Community** - Research and insights
-- **Dataset:** Kaggle Malicious URLs Dataset (651K URLs)
-
 ## Support
 
 For issues or questions:
@@ -1111,19 +1099,6 @@ For issues or questions:
 - Review the API endpoints documentation
 - Test with the provided scenarios
 - See `FINAL_REPORT.md` for comprehensive security analysis
-
----
-
-## 📄 Deliverables Checklist
-
-✅ **Source Code** - Complete implementation with security features  
-✅ **README.md** - Comprehensive documentation (this file)  
-✅ **FINAL_REPORT.md** - Detailed security analysis and methodology  
-✅ **PRESENTATION.md** - Presentation outline and talking points  
-✅ **Security Comments** - All critical code sections documented  
-✅ **Installation Guide** - Step-by-step setup instructions  
-✅ **API Documentation** - Complete endpoint reference  
-✅ **Test Scenarios** - Four comprehensive test cases  
 
 ---
 
