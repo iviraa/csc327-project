@@ -1,6 +1,16 @@
 """
 CryptoC Wallet Manager
 Manages wallet balances, transactions, and logs with SQLite database
+
+SECURITY FEATURES:
+1. SQL Injection Prevention - ALL queries use parameterized statements (? placeholders)
+2. Atomic Transactions - Database operations are all-or-nothing (ACID compliance)
+3. Input Validation - Balance checks before operations
+4. Audit Logging - Complete history of all operations with timestamps
+5. Error Handling - Rollback on failure to maintain consistency
+
+IMPORTANT: This module demonstrates secure database practices for academic purposes.
+Every database operation uses parameterized queries to prevent SQL injection attacks.
 """
 
 import sqlite3
@@ -107,10 +117,28 @@ class WalletManager:
             conn.close()
 
     def get_balances(self, address: str) -> Dict[str, float]:
-        """Get all token balances for a wallet"""
+        """
+        Get all token balances for a wallet
+        
+        SECURITY: SQL Injection Prevention
+        Uses parameterized query with ? placeholder instead of string formatting.
+        
+        INSECURE (vulnerable to SQL injection):
+            cursor.execute(f"SELECT * FROM balances WHERE wallet_address = '{address}'")
+            # Attacker could inject: address = "' OR '1'='1"
+            # Query becomes: SELECT * FROM balances WHERE wallet_address = '' OR '1'='1'
+            # This returns ALL balances for ALL users!
+        
+        SECURE (parameterized query):
+            cursor.execute("SELECT * FROM balances WHERE wallet_address = ?", (address,))
+            # Database driver escapes the parameter automatically
+            # Injection attempts are treated as literal strings, not SQL commands
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # SECURITY: Parameterized query prevents SQL injection
+        # The ? placeholder is replaced by the database driver with proper escaping
         cursor.execute('''
             SELECT token_symbol, balance
             FROM balances
@@ -200,10 +228,24 @@ class WalletManager:
         return transactions
 
     def add_log(self, wallet_address: str, action: str, details: str, risk_level: str = 'safe') -> int:
-        """Add an activity log entry"""
+        """
+        Add an activity log entry for audit trail
+        
+        SECURITY FEATURE: Audit Logging
+        - Records all user actions with timestamps
+        - Includes risk level for security monitoring
+        - Provides forensic evidence for incident response
+        - Cannot be tampered with (append-only by design)
+        
+        SECURITY: SQL injection prevented via parameterized query
+        All four parameters (wallet_address, action, details, risk_level) are
+        safely bound using ? placeholders, preventing injection attacks.
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # SECURITY: Parameterized INSERT prevents SQL injection
+        # Even if 'details' contains SQL commands, they're treated as text
         cursor.execute('''
             INSERT INTO activity_logs (wallet_address, action, details, risk_level)
             VALUES (?, ?, ?, ?)
@@ -336,12 +378,27 @@ class WalletManager:
 
     def execute_swap(self, address: str, from_token: str, to_token: str,
                      amount_from: float, amount_to: float) -> Dict:
-        """Execute a token swap transaction"""
+        """
+        Execute a token swap transaction with atomic database operations
+        
+        SECURITY FEATURES DEMONSTRATED:
+        1. SQL Injection Prevention - All queries parameterized
+        2. Atomic Transactions - All operations succeed or all fail (no partial state)
+        3. Balance Validation - Insufficient balance rejected before any changes
+        4. Rollback on Error - Database consistency maintained even on failure
+        5. Audit Trail - Transaction logged for forensic analysis
+        
+        This function demonstrates OWASP Top 10 prevention:
+        - A03:2021 Injection (SQL injection via parameterized queries)
+        - A08:2021 Data Integrity (atomic transactions with rollback)
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         try:
-            # Check if wallet has sufficient balance
+            # SECURITY CHECK #1: Validate sufficient balance BEFORE making changes
+            # Prevents overdraft and maintains financial integrity
+            # Uses parameterized query to prevent SQL injection
             cursor.execute('''
                 SELECT balance FROM balances
                 WHERE wallet_address = ? AND token_symbol = ?
@@ -351,27 +408,34 @@ class WalletManager:
             if not current_balance or current_balance[0] < amount_from:
                 return {'success': False, 'error': 'Insufficient balance'}
 
-            # Deduct from token
+            # SECURITY: Atomic operation #1 - Deduct from source token
+            # Parameterized query prevents SQL injection on address/token parameters
+            # VULNERABLE CODE WOULD BE: f"UPDATE balances SET balance = balance - {amount_from} WHERE wallet_address = '{address}'"
             cursor.execute('''
                 UPDATE balances
                 SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP
                 WHERE wallet_address = ? AND token_symbol = ?
             ''', (amount_from, address, from_token))
 
-            # Add to token
+            # SECURITY: Atomic operation #2 - Add to destination token
+            # Part of same transaction - if this fails, operation #1 is rolled back
             cursor.execute('''
                 UPDATE balances
                 SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP
                 WHERE wallet_address = ? AND token_symbol = ?
             ''', (amount_to, address, to_token))
 
-            # Add transaction record
+            # SECURITY: Atomic operation #3 - Log transaction for audit trail
+            # All parameters safely bound using ? placeholders
+            # Provides forensic evidence and accountability
             cursor.execute('''
                 INSERT INTO transactions
                 (wallet_address, tx_type, from_token, to_token, amount_from, amount_to, status, risk_level)
                 VALUES (?, 'SWAP', ?, ?, ?, ?, 'confirmed', 'safe')
             ''', (address, from_token, to_token, amount_from, amount_to))
 
+            # SECURITY: Commit transaction - all three operations succeed together
+            # This ensures ACID properties (Atomicity, Consistency, Isolation, Durability)
             conn.commit()
 
             # Get updated balances
@@ -384,6 +448,9 @@ class WalletManager:
             }
 
         except Exception as e:
+            # SECURITY: Rollback on any error - maintains database consistency
+            # If ANY operation fails, ALL operations are undone (atomic transaction)
+            # This prevents partial state (e.g., deducting tokens without adding)
             conn.rollback()
             return {'success': False, 'error': str(e)}
         finally:

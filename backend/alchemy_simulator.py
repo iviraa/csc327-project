@@ -1,6 +1,18 @@
 """
 CryptoC Alchemy RPC Integration
 Provides real-time transaction simulation using Alchemy's eth_call and state forking
+
+SECURITY FEATURE: Live Blockchain Validation
+- Simulates transactions against ACTUAL blockchain state
+- Detects transactions that would revert on-chain
+- Validates contract interactions before user signs
+- Uses Alchemy RPC (trusted third-party API)
+
+SECURITY PRACTICES:
+1. API Key Management - Reads from environment variable (never hardcoded)
+2. Graceful Degradation - Falls back to local simulation if API unavailable
+3. Error Handling - Catches contract revert errors and returns detailed reasons
+4. HTTPS-only - All API calls use encrypted connections
 """
 
 import os
@@ -17,25 +29,39 @@ class AlchemySimulator:
     """
     Transaction simulator using Alchemy RPC API
     Simulates transactions against live blockchain state
+    
+    SECURITY PURPOSE:
+    - Validates transactions will succeed on-chain
+    - Prevents wasted gas on failed transactions
+    - Detects hidden contract logic that would cause reverts
     """
 
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize Alchemy simulator
         
+        SECURITY: API Key Management
+        - Reads from environment variable (ALCHEMY_API_KEY)
+        - Never hardcoded in source code
+        - Not exposed in logs or error messages
+        
         Args:
             api_key: Alchemy API key (reads from ALCHEMY_API_KEY env var if not provided)
         """
+        # SECURITY: Read API key from environment variable (12-factor app principle)
+        # Prevents accidental commit of secrets to version control
         self.api_key = api_key or os.environ.get("ALCHEMY_API_KEY")
         self.enabled = bool(self.api_key)
         
         if self.enabled:
+            # SECURITY: HTTPS-only endpoint for encrypted API communication
             # Ethereum Mainnet endpoint
             self.rpc_url = f"https://eth-mainnet.g.alchemy.com/v2/{self.api_key}"
             self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
             logger.info("Alchemy simulator initialized with API key")
         else:
             self.w3 = None
+            # SECURITY: Graceful degradation - system continues without API key
             logger.warning("Alchemy API key not found. Simulation will use local mode only.")
 
     def is_available(self) -> bool:
@@ -262,4 +288,5 @@ if __name__ == "__main__":
         
     else:
         print("✗ Alchemy not available. Set ALCHEMY_API_KEY environment variable.")
+
 
