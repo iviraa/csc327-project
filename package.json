@@ -1,0 +1,19 @@
+{
+  "name": "cryptoc-web3-security",
+  "version": "1.0.0",
+  "description": "CryptoC - Web3 Transaction Security Simulator",
+  "scripts": {
+    "start:backend": "./start-backend.sh",
+    "start:frontend": "./start-frontend.sh",
+    "start": "./start-all.sh"
+  },
+  "keywords": [
+    "web3",
+    "security",
+    "blockchain",
+    "phishing-detection",
+    "transaction-simulator"
+  ],
+  "author": "Team CryptoC",
+  "license": "MIT"
+}

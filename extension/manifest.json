@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "CryptoC",
+  "version": "1.0.0",
+  "description": "Web3 Security Extension - Real-time ML-powered threat detection and transaction simulation. Protect yourself from phishing sites, token drainers, and NFT scams with comprehensive security analysis.",
+  "icons": {},
+  "action": {
+    "default_popup": "index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  }
+}

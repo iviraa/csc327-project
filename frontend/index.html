@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoC Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Warning Banner (Bottom Popup with Color Coding) -->
+    <div id="warning" class="hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-2xl p-4 rounded-lg shadow-2xl z-50 transition-all duration-500 ease-in-out">
+        <div class="flex justify-between items-start gap-4">
+            <div class="flex-1">
+                <h3 class="font-bold text-lg mb-2" id="warning-title">WARNING</h3>
+                <p class="text-sm mb-2" id="warning-text"></p>
+                <p class="text-xs opacity-80" id="warning-details"></p>
+            </div>
+            <button onclick="hideWarning()" class="px-3 py-1 bg-white bg-opacity-20 hover:bg-opacity-30 rounded font-bold text-sm">
+                Dismiss
+            </button>
+        </div>
+    </div>
+
+    <!-- Extension Panel -->
+    <div id="extension" class="hidden fixed top-16 right-4 w-96 bg-white border-2 border-black shadow-2xl z-40 p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold">CryptoC Security</h3>
+            <button onclick="hideExtension()" class="text-2xl">&times;</button>
+        </div>
+        <div id="extension-content"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bg-black text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <span class="text-2xl">₿</span>
+                <button onclick="showPortfolio()" class="hover:text-gray-300" id="nav-portfolio">Portfolio</button>
+                <button onclick="showLogs()" class="hover:text-gray-300" id="nav-logs">Logs</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto p-8">
+        <!-- Demo Selector -->
+        <div class="bg-gray-100 border-2 border-gray-300 rounded p-4 mb-6">
+            <div class="flex gap-2">
+                <button onclick="switchScenario('safe')" id="btn-safe" class="px-4 py-2 bg-black text-white rounded font-bold">
+                    Safe Swap
+                </button>
+                <button onclick="switchScenario('phishing')" id="btn-phishing" class="px-4 py-2 bg-white border-2 border-black rounded font-bold">
+                    Phishing Site
+                </button>
+                <button onclick="switchScenario('drainer')" id="btn-drainer" class="px-4 py-2 bg-white border-2 border-black rounded font-bold">
+                    Token Drainer
+                </button>
+                <button onclick="switchScenario('nft')" id="btn-nft" class="px-4 py-2 bg-white border-2 border-black rounded font-bold">
+                    NFT Scam
+                </button>
+            </div>
+        </div>
+
+        <!-- Home View -->
+        <div id="home-view">
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Swap Card -->
+                <div class="bg-white border-2 border-black p-6 rounded">
+                    <h2 class="text-2xl font-bold mb-4">Swap Tokens</h2>
+                    
+                    <div class="mb-4">
+                        <label class="text-xs font-bold text-gray-600 mb-2 block">FROM</label>
+                        <div class="border-2 border-gray-300 rounded p-4">
+                            <input type="number" id="from-amount" value="0.5" step="0.01" min="0" class="text-3xl font-bold w-full outline-none">
+                            <div class="text-sm text-gray-500">Balance: <span id="swap-eth-balance">5.42</span> ETH</div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center my-4">
+                        <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">↕</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-xs font-bold text-gray-600 mb-2 block">TO</label>
+                        <div class="border-2 border-gray-300 rounded p-4">
+                            <input type="number" id="to-amount" value="1250" step="0.01" min="0" class="text-3xl font-bold w-full outline-none">
+                            <div class="text-sm text-gray-500">Balance: <span id="swap-usdc-balance">2,480</span> USDC</div>
+                        </div>
+                    </div>
+
+                    <button onclick="analyzeTransaction()" class="w-full py-4 bg-black text-white font-bold text-lg rounded hover:bg-gray-800">
+                        Swap
+                    </button>
+                </div>
+
+                <!-- Info Card -->
+                <div class="space-y-4">
+                    <div class="bg-gray-100 border-2 border-gray-300 rounded p-4">
+                        <div class="text-xs font-bold text-gray-600 mb-2">CURRENT WEBSITE</div>
+                        <div id="current-url" class="font-mono text-sm mb-3">https://app.uniswap.org</div>
+                        <button onclick="checkSafety()" id="safety-check-btn" class="w-full py-2 bg-black hover:bg-gray-800 text-white font-bold rounded transition">
+                            Check if Safe
+                        </button>
+                    </div>
+
+                    <div class="bg-green-100 border-2 border-green-400 p-4 rounded">
+                        <div class="font-bold mb-2 text-green-800">CryptoC Protection Active</div>
+                        <div class="text-sm text-green-700">Real-time ML-powered threat detection</div>
+                    </div>
+
+                    <!-- Wallet Balance Display -->
+                    <div class="bg-white border-2 border-black rounded p-4">
+                        <div class="text-xs font-bold text-gray-600 mb-2">YOUR WALLET</div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm">ETH</span>
+                                <span class="font-bold" id="eth-balance">5.42</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm">USDC</span>
+                                <span class="font-bold" id="usdc-balance">2,480</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio View -->
+        <div id="portfolio-view" class="hidden">
+            <div class="bg-white border-2 border-black p-6 rounded mb-6">
+                <h2 class="text-2xl font-bold mb-4">Portfolio</h2>
+
+                <!-- Balance Overview -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-50 border-2 border-gray-300 rounded p-4">
+                        <div class="text-xs font-bold text-gray-600 mb-2">TOTAL VALUE</div>
+                        <div class="text-2xl font-bold" id="portfolio-total">$16,030</div>
+                    </div>
+                    <div class="bg-gray-50 border-2 border-gray-300 rounded p-4">
+                        <div class="text-xs font-bold text-gray-600 mb-2">TRANSACTIONS</div>
+                        <div class="text-2xl font-bold" id="portfolio-tx-count">0</div>
+                    </div>
+                    <div class="bg-gray-50 border-2 border-gray-300 rounded p-4">
+                        <div class="text-xs font-bold text-gray-600 mb-2">THREATS BLOCKED</div>
+                        <div class="text-2xl font-bold text-red-600" id="portfolio-threats">0</div>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <h3 class="font-bold mb-3">Transaction History</h3>
+                <div id="transaction-history" class="space-y-3">
+                    <div class="text-gray-500 text-sm text-center py-8">
+                        No transactions yet
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Approvals Section -->
+            <div class="bg-white border-2 border-black p-6 rounded">
+                <h3 class="font-bold text-xl mb-4">Token Approvals</h3>
+                <p class="text-gray-600 mb-6 text-sm">Review and revoke active approvals</p>
+
+                <div id="approvals-list" class="space-y-4">
+                    <div class="border-2 border-black rounded p-4 bg-gray-50">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold">USDT</h4>
+                                <p class="text-sm text-gray-600">Amount: UNLIMITED</p>
+                                <p class="text-xs text-gray-500">Approved 14 days ago</p>
+                            </div>
+                            <button onclick="revokeApproval('USDT')" class="px-4 py-2 bg-black text-white rounded font-bold hover:bg-gray-800">
+                                Revoke
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs View -->
+        <div id="logs-view" class="hidden">
+            <div class="bg-white border-2 border-black p-6 rounded">
+                <h2 class="text-2xl font-bold mb-4">Activity Logs</h2>
+                <p class="text-gray-600 mb-6 text-sm">Complete history of permissions and actions</p>
+
+                <div id="activity-logs" class="space-y-3">
+                    <div class="text-gray-500 text-sm text-center py-8">
+                        No activity logs yet
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =============================================================================
+        // WALLET STATE & BACKEND INTEGRATION
+        // =============================================================================
+        const BACKEND_URL = 'http://localhost:5000';
+
+        let currentScenario = 'safe';
+        let walletState = {
+            ETH: 5.42,
+            USDC: 2480,
+            transactions: [],
+            logs: [],
+            threatsBlocked: 0
+        };
+
+        const scenarios = {
+            safe: {
+                url: 'https://app.uniswap.org',
+                riskLevel: 'safe',
+                riskScore: 5
+            },
+            phishing: {
+                url: 'https://op3nsea.io',
+                riskLevel: 'danger',
+                riskScore: 94,
+                title: 'CRITICAL: PHISHING SITE DETECTED',
+                message: 'This action is impersonating opensea.io',
+                details: 'ML Model detected typosquatting attack. Domain registered 2 days ago.'
+            },
+            drainer: {
+                url: 'https://free-nft-mint.xyz',
+                riskLevel: 'danger',
+                riskScore: 89,
+                title: 'CRITICAL: WALLET DRAINER DETECTED',
+                message: 'This action will steal all your tokens',
+                details: 'Unlimited approval request detected. This transaction pattern is commonly used for wallet draining attacks.'
+            },
+            nft: {
+                url: 'https://claim-rewards.eth-staking.com',
+                riskLevel: 'warning',
+                riskScore: 86,
+                title: 'WARNING: NFT SCAM DETECTED',
+                message: 'This action may steal your NFT collection',
+                details: 'Suspicious approval request detected. This transaction pattern is commonly associated with NFT theft.'
+            }
+        };
+
+        // =============================================================================
+        // ML SAFETY CHECK
+        // =============================================================================
+        async function checkSafety() {
+            const btn = document.getElementById('safety-check-btn');
+            const data = scenarios[currentScenario];
+
+            btn.innerHTML = 'Checking...';
+            btn.disabled = true;
+
+            // Show progress animation
+            showProgressBar('Analyzing URL with ML model...');
+
+            try {
+                // Call ML backend
+                const response = await fetch(`${BACKEND_URL}/predict`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: data.url })
+                });
+
+                const result = await response.json();
+
+                hideProgressBar();
+
+                // Log the safety check
+                addLog('SAFETY_CHECK', `Checked ${data.url}`, data.riskLevel);
+
+                // Show bottom warning with color coding
+                if (data.riskLevel !== 'safe') {
+                    showColoredWarning(data);
+                } else {
+                    showColoredWarning({
+                        riskLevel: 'safe',
+                        title: 'SAFE: Website Verified',
+                        message: 'This website appears legitimate',
+                        details: `ML Confidence: ${result.confidence || '95'}%`
+                    });
+                }
+            } catch (error) {
+                console.error('ML check failed:', error);
+                hideProgressBar();
+                // Fallback to scenario data
+                if (data.riskLevel !== 'safe') {
+                    showColoredWarning(data);
+                } else {
+                    showColoredWarning({
+                        riskLevel: 'safe',
+                        title: 'SAFE: Website Verified',
+                        message: 'This website appears legitimate',
+                        details: 'No threats detected'
+                    });
+                }
+            }
+
+            btn.innerHTML = 'Check if Safe';
+            btn.disabled = false;
+        }
+
+        function showColoredWarning(data) {
+            const warning = document.getElementById('warning');
+            const title = document.getElementById('warning-title');
+            const text = document.getElementById('warning-text');
+            const details = document.getElementById('warning-details');
+
+            // Color coding based on risk level
+            warning.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-2xl p-4 rounded-lg shadow-2xl z-50 transition-all duration-500 ease-in-out';
+
+            if (data.riskLevel === 'danger') {
+                warning.classList.add('bg-red-600', 'text-white');
+            } else if (data.riskLevel === 'warning') {
+                warning.classList.add('bg-yellow-500', 'text-black');
+            } else {
+                warning.classList.add('bg-green-600', 'text-white');
+            }
+
+            title.textContent = data.title;
+            text.textContent = data.message;
+            details.textContent = data.details || '';
+
+            warning.classList.remove('hidden');
+
+            // Slide up animation from bottom
+            setTimeout(() => warning.style.transform = 'translate(-50%, 0)', 10);
+        }
+
+        function hideWarning() {
+            const warning = document.getElementById('warning');
+            warning.style.transform = 'translate(-50%, 100px)';
+            setTimeout(() => warning.classList.add('hidden'), 300);
+        }
+
+        // =============================================================================
+        // PROGRESS ANIMATION
+        // =============================================================================
+        function showProgressBar(message) {
+            const existing = document.getElementById('progress-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'progress-overlay';
+            overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                    <div class="text-center mb-4">
+                        <div class="text-lg font-bold">${message}</div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div class="progress-bar h-full bg-green-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-2 text-center" id="progress-status">Broadcasting transaction...</div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Animate progress
+            const bar = overlay.querySelector('.progress-bar');
+            const status = overlay.querySelector('#progress-status');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                bar.style.width = progress + '%';
+
+                if (progress < 30) status.textContent = 'Broadcasting transaction...';
+                else if (progress < 60) status.textContent = 'Waiting for confirmation...';
+                else status.textContent = 'Finalizing...';
+            }, 200);
+
+            overlay.dataset.interval = interval;
+        }
+
+        function hideProgressBar() {
+            const overlay = document.getElementById('progress-overlay');
+            if (overlay) {
+                clearInterval(overlay.dataset.interval);
+                const bar = overlay.querySelector('.progress-bar');
+                bar.style.width = '100%';
+                setTimeout(() => overlay.remove(), 300);
+            }
+        }
+
+        // =============================================================================
+        // TRANSACTION ANALYSIS WITH BALANCE UPDATES
+        // =============================================================================
+        async function analyzeTransaction() {
+            const btn = event.target;
+            const fromInput = document.getElementById('from-amount');
+            const toInput = document.getElementById('to-amount');
+
+            const amount = parseFloat(fromInput.value) || 0;
+            const receiveAmount = parseFloat(toInput.value) || 0;
+
+            btn.innerHTML = 'Analyzing...';
+            btn.disabled = true;
+
+            // Show extension popup with animation first
+            showExtensionWithAnimation('Simulating transaction on blockchain...');
+
+            try {
+                // Call blockchain simulator backend
+                const response = await fetch(`${BACKEND_URL}/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+                        to: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+                        value: '0',
+                        data: currentScenario === 'safe' ? '' : '0x095ea7b3',
+                        gasLimit: 100000
+                    })
+                });
+
+                const simulation = await response.json();
+
+                // Wait a bit to show the animation
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                // Show transaction analysis with decoded info
+                showTransactionAnalysis(simulation, amount, receiveAmount);
+
+                addLog('TRANSACTION_ANALYZED', `${amount} ETH → ${receiveAmount} USDC`, simulation.risk_level);
+
+            } catch (error) {
+                console.error('Simulation failed:', error);
+                // Fallback to demo data (animation is already showing)
+                await showTransactionAnalysisFallback(amount, receiveAmount);
+            }
+
+            btn.innerHTML = 'Swap';
+            btn.disabled = false;
+        }
+
+        function showExtensionWithAnimation(message) {
+            const extension = document.getElementById('extension');
+            const content = `
+                <div class="text-center py-8">
+                    <div class="text-lg font-bold mb-4">${message}</div>
+                    <div class="flex justify-center">
+                        <div class="relative w-8 h-8">
+                            <div class="absolute inset-0 border-2 border-green-200 rounded-full"></div>
+                            <div class="absolute inset-0 border-2 border-green-600 rounded-full border-t-transparent animate-spin"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('extension-content').innerHTML = content;
+            extension.classList.remove('hidden');
+        }
+
+        function showTransactionAnalysis(simulation, amount, receiveAmount) {
+            const isHazardous = simulation.risk_level === 'danger';
+            const warnings = simulation.warnings || [];
+            const warningText = warnings.length > 0 ? warnings[0] : (isHazardous ? 'This transaction is dangerous' : '');
+
+            const content = `
+                <div class="bg-${isHazardous ? 'red' : 'green'}-100 border-2 border-${isHazardous ? 'red' : 'green'}-600 p-3 rounded mb-3 font-bold text-center">
+                    ${isHazardous ? 'CRITICAL RISK' : 'LOW RISK'}
+                </div>
+
+                ${isHazardous ? `
+                    <div class="text-center mb-4">
+                        <p class="text-red-600 font-semibold">${warningText}</p>
+                    </div>
+                ` : `
+                    <div class="text-center mb-4">
+                        <p class="text-gray-700 mb-3">You will be transferring ${amount} ETH and receiving ${receiveAmount.toLocaleString()} USDC</p>
+                        <div class="bg-gray-50 border border-gray-300 rounded p-3 text-sm">
+                            <div class="flex justify-between mb-1">
+                                <span>Send:</span>
+                                <span class="font-bold text-red-600">-${amount} ETH</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Receive:</span>
+                                <span class="font-bold text-green-600">+${receiveAmount.toLocaleString()} USDC</span>
+                            </div>
+                        </div>
+                    </div>
+                `}
+
+                <div class="text-xs text-gray-600 mb-3 text-center">
+                    Gas: ${simulation.gas_used || '21000'} | Network Fee: ~$2.50
+                </div>
+
+                <div class="flex gap-2">
+                    ${!isHazardous ? `
+                        <button onclick="hideExtension()" class="flex-1 py-2 border-2 border-black rounded font-bold">
+                            Cancel
+                        </button>
+                        <button onclick="confirmTransaction(${amount}, ${receiveAmount})" class="flex-1 py-2 bg-black text-white rounded font-bold">
+                            Confirm & Execute
+                        </button>
+                    ` : `
+                        <button onclick="rejectTransaction(); hideExtension();" class="flex-1 py-2 bg-red-600 text-white rounded font-bold">
+                            Reject Transaction
+                        </button>
+                    `}
+                </div>
+            `;
+
+            document.getElementById('extension-content').innerHTML = content;
+        }
+
+        async function showTransactionAnalysisFallback(amount, receiveAmount) {
+            const data = scenarios[currentScenario];
+            const isHazardous = data.riskLevel !== 'safe';
+
+            // Wait a bit to show the animation
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            const warningText = isHazardous ? data.message : '';
+
+            const content = `
+                <div class="bg-${isHazardous ? 'red' : 'green'}-100 border-2 border-${isHazardous ? 'red' : 'green'}-600 p-3 rounded mb-3 font-bold text-center">
+                    ${isHazardous ? 'CRITICAL RISK' : 'LOW RISK'}
+                </div>
+
+                ${isHazardous ? `
+                    <div class="text-center mb-4">
+                        <p class="text-red-600 font-semibold">${warningText}</p>
+                    </div>
+                ` : `
+                    <div class="text-center mb-4">
+                        <p class="text-gray-700 mb-3">You will be transferring ${amount} ETH and receiving ${receiveAmount.toLocaleString()} USDC</p>
+                        <div class="bg-gray-50 border border-gray-300 rounded p-3 text-sm">
+                            <div class="flex justify-between mb-1">
+                                <span>Send:</span>
+                                <span class="font-bold text-red-600">-${amount} ETH</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Receive:</span>
+                                <span class="font-bold text-green-600">+${receiveAmount.toLocaleString()} USDC</span>
+                            </div>
+                        </div>
+                    </div>
+                `}
+
+                <div class="text-xs text-gray-600 mb-3 text-center">
+                    Gas: 21000 | Network Fee: ~$2.50
+                </div>
+
+                <div class="flex gap-2">
+                    ${!isHazardous ? `
+                        <button onclick="hideExtension()" class="flex-1 py-2 border-2 border-black rounded font-bold">Cancel</button>
+                        <button onclick="confirmTransaction(${amount}, ${receiveAmount})" class="flex-1 py-2 bg-black text-white rounded font-bold">Confirm & Execute</button>
+                    ` : `
+                        <button onclick="rejectTransaction(); hideExtension();" class="flex-1 py-2 bg-red-600 text-white rounded font-bold">Reject Transaction</button>
+                    `}
+                </div>
+            `;
+
+            document.getElementById('extension-content').innerHTML = content;
+        }
+
+        async function confirmTransaction(ethAmount, usdcAmount) {
+            showProgressBar('Executing transaction on blockchain...');
+
+            // Simulate blockchain confirmation delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Update wallet balances
+            walletState.ETH -= ethAmount;
+            walletState.USDC += usdcAmount;
+
+            // Add to transaction history
+            const tx = {
+                timestamp: new Date().toISOString(),
+                type: 'SWAP',
+                from: 'ETH',
+                to: 'USDC',
+                amountFrom: ethAmount,
+                amountTo: usdcAmount,
+                status: 'confirmed'
+            };
+            walletState.transactions.unshift(tx);
+
+            // Update all displays
+            updateWalletDisplay();
+            updateTransactionHistory();
+
+            addLog('TRANSACTION_CONFIRMED', `Swapped ${ethAmount} ETH for ${usdcAmount} USDC`, 'safe');
+
+            hideProgressBar();
+            hideExtension();
+
+            showNotification('Transaction confirmed successfully!', 'success');
+        }
+
+        function rejectTransaction() {
+            walletState.threatsBlocked++;
+            addLog('TRANSACTION_REJECTED', 'Blocked malicious transaction', 'danger');
+            showNotification('Malicious transaction blocked!', 'success');
+            updatePortfolioStats();
+        }
+
+        function updateWalletDisplay() {
+            // Update wallet balance display in info card
+            document.getElementById('eth-balance').textContent = walletState.ETH.toFixed(2);
+            document.getElementById('usdc-balance').textContent = walletState.USDC.toLocaleString();
+            
+            // Update swap card balances
+            const swapEthBalance = document.getElementById('swap-eth-balance');
+            const swapUsdcBalance = document.getElementById('swap-usdc-balance');
+            if (swapEthBalance) {
+                swapEthBalance.textContent = walletState.ETH.toFixed(2);
+            }
+            if (swapUsdcBalance) {
+                swapUsdcBalance.textContent = walletState.USDC.toLocaleString();
+            }
+            
+            updatePortfolioStats();
+        }
+
+        function updatePortfolioStats() {
+            const ethValue = walletState.ETH * 2500; // $2500 per ETH
+            const usdcValue = walletState.USDC;
+            const total = ethValue + usdcValue;
+
+            document.getElementById('portfolio-total').textContent = '$' + total.toLocaleString();
+            document.getElementById('portfolio-tx-count').textContent = walletState.transactions.length;
+            document.getElementById('portfolio-threats').textContent = walletState.threatsBlocked;
+        }
+
+        // =============================================================================
+        // LOGS & PORTFOLIO
+        // =============================================================================
+        function addLog(action, details, riskLevel) {
+            const log = {
+                timestamp: new Date().toLocaleString(),
+                action,
+                details,
+                riskLevel
+            };
+            walletState.logs.unshift(log);
+            updateLogsDisplay();
+        }
+
+        function updateLogsDisplay() {
+            const logsContainer = document.getElementById('activity-logs');
+            if (walletState.logs.length === 0) {
+                logsContainer.innerHTML = '<div class="text-gray-500 text-sm text-center py-8">No activity logs yet</div>';
+                return;
+            }
+
+            logsContainer.innerHTML = walletState.logs.map(log => `
+                <div class="border-2 border-gray-300 rounded p-3 bg-gray-50">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-bold text-sm">${log.action.replace(/_/g, ' ')}</span>
+                        <span class="text-xs ${
+                            log.riskLevel === 'danger' ? 'text-red-600' :
+                            log.riskLevel === 'warning' ? 'text-yellow-600' : 'text-green-600'
+                        } font-bold">${log.riskLevel.toUpperCase()}</span>
+                    </div>
+                    <div class="text-sm text-gray-700">${log.details}</div>
+                    <div class="text-xs text-gray-500 mt-1">${log.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateTransactionHistory() {
+            const historyContainer = document.getElementById('transaction-history');
+            if (walletState.transactions.length === 0) {
+                historyContainer.innerHTML = '<div class="text-gray-500 text-sm text-center py-8">No transactions yet</div>';
+                return;
+            }
+
+            historyContainer.innerHTML = walletState.transactions.map(tx => `
+                <div class="border-2 border-black rounded p-4 bg-gray-50">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold">${tx.type}</span>
+                        <span class="text-xs px-2 py-1 bg-green-200 text-green-800 rounded">${tx.status}</span>
+                    </div>
+                    <div class="text-sm">
+                        <span class="text-red-600">-${tx.amountFrom} ${tx.from}</span>
+                        <span class="mx-2">→</span>
+                        <span class="text-green-600">+${tx.amountTo.toLocaleString()} ${tx.to}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${new Date(tx.timestamp).toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // =============================================================================
+        // NAVIGATION
+        // =============================================================================
+        function showHome() {
+            document.getElementById('home-view').classList.remove('hidden');
+            document.getElementById('portfolio-view').classList.add('hidden');
+            document.getElementById('logs-view').classList.add('hidden');
+            // Ensure balances are up to date when showing home view
+            updateWalletDisplay();
+        }
+
+        function showPortfolio() {
+            document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('portfolio-view').classList.remove('hidden');
+            document.getElementById('logs-view').classList.add('hidden');
+            updateTransactionHistory();
+            updatePortfolioStats();
+        }
+
+        function showLogs() {
+            document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('portfolio-view').classList.add('hidden');
+            document.getElementById('logs-view').classList.remove('hidden');
+            updateLogsDisplay();
+        }
+
+        function switchScenario(scenario) {
+            currentScenario = scenario;
+            const data = scenarios[scenario];
+            document.getElementById('current-url').textContent = data.url;
+            hideWarning();
+            
+            // Switch to home view (normal tab)
+            showHome();
+            
+            // Update button styles to show selected state
+            const buttons = {
+                'safe': document.getElementById('btn-safe'),
+                'phishing': document.getElementById('btn-phishing'),
+                'drainer': document.getElementById('btn-drainer'),
+                'nft': document.getElementById('btn-nft')
+            };
+            
+            // Reset all buttons
+            Object.values(buttons).forEach(btn => {
+                if (btn) {
+                    btn.className = 'px-4 py-2 bg-white border-2 border-black rounded font-bold';
+                }
+            });
+            
+            // Set active button
+            if (buttons[scenario]) {
+                buttons[scenario].className = 'px-4 py-2 bg-black text-white rounded font-bold';
+            }
+            
+            console.log('Switched to:', scenario);
+        }
+
+        function hideExtension() {
+            document.getElementById('extension').classList.add('hidden');
+        }
+
+        function revokeApproval(token) {
+            addLog('APPROVAL_REVOKED', `Revoked ${token} approval`, 'safe');
+            showNotification(`${token} approval revoked`, 'success');
+        }
+
+        function showNotification(message, type) {
+            const notif = document.createElement('div');
+            notif.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg font-bold text-sm z-50 ${
+                type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            }`;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        // Auto-calculate "to" amount when "from" amount changes
+        function setupSwapInputs() {
+            const fromInput = document.getElementById('from-amount');
+            const toInput = document.getElementById('to-amount');
+            
+            if (fromInput && toInput) {
+                fromInput.addEventListener('input', function() {
+                    const ethAmount = parseFloat(this.value) || 0;
+                    // Calculate USDC amount: 1 ETH = 2500 USDC (approximate rate)
+                    const usdcAmount = ethAmount * 2500;
+                    toInput.value = usdcAmount.toFixed(0);
+                });
+            }
+        }
+
+        // Initialize
+        console.log('CryptoC loaded successfully!');
+        updateWalletDisplay();
+        setupSwapInputs();
+        // Initialize scenario button state
+        switchScenario('safe');
+    </script>
+</body>
+</html>
+

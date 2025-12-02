@@ -1,0 +1,96 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+*.db
+*.sqlite
+*.log
+
+# Backend specific
+backend/venv/
+backend/__pycache__/
+backend/*.db
+backend/*.log
+backend/model/  # Custom trained models directory
+backend/**/*.pkl  # Pickled model files (model.pkl, vectorizer.pkl, scaler.pkl)
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Vite cache
+.vite/
+.vite
+
+# Extension build outputs
+extension/dist/
+extension/build/
+extension/node_modules/
+
+# Frontend build outputs (if any)
+frontend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend.log
+frontend.log
+*.log.*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+wallet.db
+backend/wallet.db
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Jupyter Notebooks (if any)
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
