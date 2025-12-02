@@ -228,24 +228,24 @@
                 url: 'https://op3nsea.io',
                 riskLevel: 'danger',
                 riskScore: 94,
-                title: 'CRITICAL: PHISHING SITE DETECTED',
-                message: 'This action is impersonating opensea.io',
-                details: 'ML Model detected typosquatting attack. Domain registered 2 days ago.'
+                title: 'CRITICAL: TRANSACTION BLOCKED',
+                message: 'This transaction has been blocked due to phishing site detection',
+                details: 'This action is on a phishing site impersonating opensea.io. Transaction blocked to protect your funds.'
             },
             drainer: {
                 url: 'https://free-nft-mint.xyz',
                 riskLevel: 'danger',
                 riskScore: 89,
-                title: 'CRITICAL: WALLET DRAINER DETECTED',
-                message: 'This action will steal all your tokens',
+                title: 'CRITICAL: TRANSACTION BLOCKED',
+                message: 'This transaction will steal all your tokens',
                 details: 'Unlimited approval request detected. This transaction pattern is commonly used for wallet draining attacks.'
             },
             nft: {
                 url: 'https://claim-rewards.eth-staking.com',
                 riskLevel: 'warning',
                 riskScore: 86,
-                title: 'WARNING: NFT SCAM DETECTED',
-                message: 'This action may steal your NFT collection',
+                title: 'WARNING: TRANSACTION BLOCKED',
+                message: 'This transaction may steal your NFT collection',
                 details: 'Suspicious approval request detected. This transaction pattern is commonly associated with NFT theft.'
             }
         };
@@ -406,7 +406,29 @@
             btn.innerHTML = 'Analyzing...';
             btn.disabled = true;
 
-            // Show extension popup with animation first
+            // Check if current scenario is malicious (phishing, drainer, or nft)
+            const isMaliciousScenario = currentScenario === 'phishing' || currentScenario === 'drainer' || currentScenario === 'nft';
+            
+            if (isMaliciousScenario) {
+                // For malicious scenarios, just show error message directly (no extension popup)
+                const scenarioData = scenarios[currentScenario];
+                
+                // Show error message in warning banner
+                showColoredWarning({
+                    riskLevel: scenarioData.riskLevel,
+                    title: scenarioData.title || 'TRANSACTION BLOCKED',
+                    message: scenarioData.message || 'This transaction has been blocked',
+                    details: scenarioData.details || 'CryptoC detected a dangerous transaction pattern'
+                });
+                
+                addLog('TRANSACTION_BLOCKED', `Blocked swap on ${scenarioData.url}`, scenarioData.riskLevel);
+                
+                btn.innerHTML = 'Swap';
+                btn.disabled = false;
+                return;
+            }
+
+            // For safe swaps, show extension popup with animation
             showExtensionWithAnimation('Simulating transaction on blockchain...');
 
             try {
@@ -418,7 +440,7 @@
                         from: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
                         to: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
                         value: '0',
-                        data: currentScenario === 'safe' ? '' : '0x095ea7b3',
+                        data: '',
                         gasLimit: 100000
                     })
                 });
