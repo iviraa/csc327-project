@@ -20,7 +20,6 @@
 - [Security Implementation Details](#security-implementation-details)
 - [Code Security Highlights](#code-security-highlights)
 - [API Documentation](#api-endpoints)
-- [Testing & Validation](#testing)
 
 
 ---
