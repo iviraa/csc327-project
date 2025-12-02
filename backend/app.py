@@ -42,11 +42,16 @@ def predict():
         # Get prediction using our new prediction system
         result = predict_url_type(url)
         
+        # Determine if URL is safe (benign) or dangerous (malicious)
+        is_safe = result["label"] == "benign"
+        
         # Format response
         response = {
             "url": url,
             "prediction": result["label"],
+            "is_safe": is_safe,
             "confidence": result["confidence"],
+            "risk_score": result.get("risk_score", result["confidence"] * 100),
             "model_used": result["model_used"]
         }
         
@@ -307,7 +312,7 @@ def get_metrics():
     """
     Get comprehensive ML model metrics
     Query parameters:
-    - test_size: Number of test samples (default: 1000, max: 10000)
+    - test_size: Number of test samples (default: "all" for all data, or specify a number, max: 10000)
     - quick: If true, use smaller test set for faster response (default: false)
     """
     if not EVALUATION_AVAILABLE:
@@ -315,20 +320,38 @@ def get_metrics():
     
     try:
         quick = request.args.get("quick", "false").lower() == "true"
-        test_size = int(request.args.get("test_size", 100 if quick else 1000))
+        test_size_param = request.args.get("test_size", "all" if not quick else "100")
+        test_percentage_param = request.args.get("test_percentage", None)
+        n_workers = int(request.args.get("n_workers", 10))
         
-        # Limit test size for performance
-        if test_size > 10000:
-            test_size = 10000
-        if test_size < 10:
-            test_size = 10
+        # Limit workers to reasonable range
+        n_workers = max(1, min(n_workers, 20))
         
-        logger.info(f"Computing metrics with test_size={test_size}, quick={quick}")
+        # Handle percentage-based testing
+        test_percentage = None
+        if test_percentage_param:
+            test_percentage = float(test_percentage_param)
+            test_percentage = max(0.01, min(test_percentage, 1.0))  # Between 1% and 100%
+        
+        # Handle "all" to use all available data
+        test_size = None
+        if test_percentage is None:
+            if test_size_param.lower() == "all":
+                test_size = None
+            else:
+                test_size = int(test_size_param)
+                # Limit test size for performance (only if not using all data)
+                if test_size > 10000:
+                    test_size = 10000
+                if test_size < 10:
+                    test_size = 10
+        
+        logger.info(f"Computing metrics with test_percentage={test_percentage}, test_size={test_size if test_size else 'all'}, n_workers={n_workers}, quick={quick}")
         
         if quick:
             metrics = get_quick_metrics()
         else:
-            metrics = evaluate_model(test_size=test_size)
+            metrics = evaluate_model(test_size=test_size, test_percentage=test_percentage, n_workers=n_workers)
         
         if "error" in metrics:
             return jsonify(metrics), 500

@@ -1,6 +1,7 @@
 """
 CryptoC Blockchain Transaction Simulator
 Simulates Ethereum transactions with real cryptographic operations
+Integrates with Alchemy RPC for live blockchain state analysis
 """
 
 import hashlib
@@ -11,6 +12,9 @@ from decimal import Decimal
 from eth_abi import decode, encode
 from eth_utils import keccak, to_checksum_address, to_wei, from_wei
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,11 +67,29 @@ class EthereumSimulator:
     # Common dangerous patterns
     UNLIMITED_APPROVAL = 2**256 - 1  # type(uint256).max
 
-    def __init__(self):
-        """Initialize simulator with state storage"""
+    def __init__(self, use_alchemy: bool = True):
+        """
+        Initialize simulator with state storage
+        
+        Args:
+            use_alchemy: If True, will attempt to use Alchemy for real blockchain data
+        """
         self.balances: Dict[str, Dict[str, Decimal]] = {}  # address -> {token_address -> balance}
         self.approvals: Dict[str, Dict[str, Decimal]] = {}  # owner -> {spender -> amount}
         self.nft_approvals: Dict[str, Dict[int, str]] = {}  # contract -> {tokenId -> approved_address}
+        
+        # Try to initialize Alchemy simulator
+        self.alchemy = None
+        if use_alchemy:
+            try:
+                from alchemy_simulator import get_alchemy_simulator
+                self.alchemy = get_alchemy_simulator()
+                if self.alchemy.is_available():
+                    logger.info("Alchemy integration enabled for transaction simulation")
+                else:
+                    logger.info("Alchemy not available, using local simulation only")
+            except Exception as e:
+                logger.warning(f"Could not initialize Alchemy: {e}")
 
     def simulate_transaction(
         self,
@@ -106,6 +128,24 @@ class EthereumSimulator:
                 effect_type="transfer",
                 token_symbol="ETH"
             ))
+
+        # Try Alchemy simulation first for real-world validation
+        if self.alchemy and self.alchemy.is_available() and data:
+            try:
+                alchemy_result = self.alchemy.simulate_transaction(
+                    from_address=from_address,
+                    to_address=to_address,
+                    value=value,
+                    data=data
+                )
+                
+                if not alchemy_result["success"]:
+                    warnings.append(f"⚠️ Transaction would REVERT on actual blockchain")
+                    if alchemy_result.get("revert_reason"):
+                        warnings.append(f"Reason: {alchemy_result['revert_reason']}")
+                    
+            except Exception as e:
+                logger.warning(f"Alchemy simulation failed: {e}")
 
         # Decode contract call
         if data and len(data) > 10:  # Has function call
@@ -381,16 +421,28 @@ class EthereumSimulator:
         return balance_changes
 
     def _get_contract_info(self, address: str) -> Dict[str, Any]:
-        """Get contract information (would query blockchain in production)"""
-        # In production, this would:
-        # - Check if address is a contract
-        # - Get contract verification status
-        # - Fetch contract name/symbol
-        # - Check audit reports
+        """Get contract information using Alchemy if available"""
+        # Try to get real contract info from Alchemy
+        if self.alchemy and self.alchemy.is_available():
+            try:
+                # Check if it's a token contract
+                token_info = self.alchemy.get_token_info(address)
+                
+                return {
+                    "is_contract": True,
+                    "verified": self.alchemy.check_contract_verified(address),
+                    "name": token_info.get("name", "Unknown Contract"),
+                    "symbol": token_info.get("symbol"),
+                    "decimals": token_info.get("decimals", 18),
+                    "has_audit": False  # Would need separate audit database
+                }
+            except Exception as e:
+                logger.warning(f"Could not fetch contract info: {e}")
 
+        # Fallback to placeholder data
         return {
-            "is_contract": True,  # Assume contract for now
-            "verified": False,  # Would check on Etherscan
+            "is_contract": True,
+            "verified": False,
             "name": "Unknown Contract",
             "has_audit": False
         }

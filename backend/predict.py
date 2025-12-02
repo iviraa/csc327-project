@@ -3,100 +3,151 @@ import pandas as pd
 from urllib.parse import urlparse
 import os
 import logging
+from scipy.sparse import hstack
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to import HuggingFace model
+# Model loading state
+xgboost_model = None
+hf_model_available = False
+
+# Try to import HuggingFace model (fallback)
 try:
     from hf_model import check_url as hf_check_url
-    HF_MODEL_AVAILABLE = True
-    logger.info("HuggingFace model loaded successfully")
+    hf_model_available = True
+    logger.info("HuggingFace model available as fallback")
 except Exception as e:
-    HF_MODEL_AVAILABLE = False
-    logger.warning(f"Could not load HuggingFace model: {str(e)}. Will use custom model.")
+    hf_model_available = False
+    logger.warning(f"HuggingFace model not available: {str(e)}")
 
-# Load the custom model components only if needed
-def load_custom_model():
-    global model, vectorizer, scaler
-    model = joblib.load("model/model.pkl")
-    vectorizer = joblib.load("model/vectorizer.pkl")
-    scaler = joblib.load("model/scaler.pkl")
-    logger.info("Custom model components loaded successfully")
+def load_xgboost_model():
+    """Load XGBoost model (primary model)"""
+    global xgboost_model
+    
+    try:
+        model_path = "model/xgboost_model.pkl"
+        vectorizer_path = "model/vectorizer.pkl"
+        scaler_path = "model/scaler.pkl"
+        
+        if not os.path.exists(model_path):
+            logger.warning(f"XGBoost model not found at {model_path}")
+            return False
+            
+        xgboost_model = {
+            'model': joblib.load(model_path),
+            'vectorizer': joblib.load(vectorizer_path),
+            'scaler': joblib.load(scaler_path)
+        }
+        logger.info("XGBoost model loaded successfully (PRIMARY MODEL)")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error loading XGBoost model: {e}")
+        xgboost_model = None
+        return False
+
+# Try to load XGBoost on import
+load_xgboost_model()
 
 # === Feature Engineering Helpers ===
 
-def extract_features(url):
+def extract_url_features(url):
+    """Extract numeric features from URL"""
     parsed = urlparse(url)
-    url_length = len(url)
-    subdomain_count = len(parsed.hostname.split(".")) - 2 if parsed.hostname else 0
-    path_segment_count = len(parsed.path.strip("/").split("/")) if parsed.path else 0
-    return pd.DataFrame([{
-        "url": url,
-        "url_length": url_length,
-        "subdomain_count": subdomain_count,
-        "path_segment_count": path_segment_count
-    }])
+    
+    features = {
+        'url_length': len(url),
+        'subdomain_count': len(parsed.hostname.split('.')) - 2 if parsed.hostname else 0,
+        'path_segment_count': len(parsed.path.strip('/').split('/')) if parsed.path else 0,
+        'has_ip': int(bool(parsed.hostname and any(c.isdigit() for c in parsed.hostname.split('.')[0]))),
+        'special_char_count': sum(1 for c in url if c in ['@', '?', '&', '=', '-', '_']),
+        'has_https': int(parsed.scheme == 'https'),
+        'query_length': len(parsed.query) if parsed.query else 0,
+    }
+    
+    return pd.DataFrame([features])
 
-def predict_with_custom_model(url):
-    """Use the custom model to predict URL type"""
-    # Load custom model if not already loaded
-    if not 'model' in globals():
-        load_custom_model()
-
-    features_df = extract_features(url)
-
-    # Vectorize the URL text
-    url_vec = vectorizer.transform(features_df["url"])
-
-    # Scale the numeric features
-    numeric_feats = scaler.transform(features_df[["url_length", "subdomain_count", "path_segment_count"]])
-
-    # Combine both sets of features
-    from scipy.sparse import hstack
+def predict_with_xgboost(url):
+    """
+    Use XGBoost model to predict URL type (PRIMARY MODEL)
+    
+    Args:
+        url: URL string to analyze
+        
+    Returns:
+        Dict with label, confidence, and model info
+    """
+    global xgboost_model
+    
+    if xgboost_model is None:
+        if not load_xgboost_model():
+            raise Exception("XGBoost model not available")
+    
+    # Extract features
+    numeric_df = extract_url_features(url)
+    
+    # TF-IDF features
+    url_vec = xgboost_model['vectorizer'].transform([url])
+    
+    # Scale numeric features
+    numeric_feats = xgboost_model['scaler'].transform(numeric_df)
+    
+    # Combine features
     final_input = hstack([url_vec, numeric_feats])
-
-    # Predict class and probabilities
-    prediction = model.predict(final_input)[0]
-    probs = model.predict_proba(final_input)[0]
-    confidence = max(probs)
-
+    
+    # Predict
+    prediction = xgboost_model['model'].predict(final_input)[0]
+    probs = xgboost_model['model'].predict_proba(final_input)[0]
+    
+    # prediction is 0 (benign) or 1 (malicious)
+    label = "benign" if prediction == 0 else "malicious"
+    confidence = float(probs[prediction])
+    
     return {
-        "label": prediction,
-        "confidence": float(confidence)
+        "label": label,
+        "confidence": confidence,
+        "risk_score": float(probs[1] * 100)  # Malicious probability as risk score
     }
 
 def predict_url_type(url):
-    """Main prediction function that tries HuggingFace model first, then falls back to custom model"""
-    try:
-        if HF_MODEL_AVAILABLE:
-            logger.info("Using HuggingFace model for prediction")
+    """
+    Main prediction function
+    Priority: XGBoost (primary) -> HuggingFace (fallback)
+    
+    Args:
+        url: URL string to analyze
+        
+    Returns:
+        Dict with prediction results
+    """
+    # Try XGBoost first (primary model as per research)
+    if xgboost_model is not None:
+        try:
+            logger.info("Using XGBoost model for prediction (PRIMARY)")
+            result = predict_with_xgboost(url)
+            result["model_used"] = "xgboost"
+            return result
+        except Exception as e:
+            logger.error(f"XGBoost prediction failed: {e}")
+    
+    # Fallback to HuggingFace if available
+    if hf_model_available:
+        try:
+            logger.info("Using HuggingFace model for prediction (FALLBACK)")
             result = hf_check_url(url)
-            # Convert HF model's output format to match our API
             return {
                 "label": "malicious" if result["label"] == "malicious" else "benign",
                 "confidence": float(result["confidence"]),
+                "risk_score": float(result.get("confidence", 0.5) * 100),
                 "model_used": "huggingface"
             }
-        else:
-            logger.info("Using custom model for prediction")
-            result = predict_with_custom_model(url)
-            result["model_used"] = "custom"
-            return result
-    except Exception as e:
-        logger.error(f"Error in prediction: {str(e)}")
-        # If HF model fails, try custom model as fallback
-        if HF_MODEL_AVAILABLE:
-            logger.info("Falling back to custom model")
-            try:
-                result = predict_with_custom_model(url)
-                result["model_used"] = "custom"
-                return result
-            except Exception as e2:
-                logger.error(f"Both models failed. Custom model error: {str(e2)}")
-                raise Exception("All prediction models failed")
-        raise e
+        except Exception as e:
+            logger.error(f"HuggingFace prediction failed: {e}")
+    
+    # No models available
+    raise Exception("No prediction models available. Train XGBoost model or install HuggingFace model.")
 
 # === Run prediction on sample input ===
 if __name__ == "__main__":

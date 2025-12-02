@@ -89,6 +89,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "TOGGLE_SEARCH") {
     setToggleState("searchEnabled", message.enabled);
   }
+  
+  if (message.type === "TOGGLE_TRANSACTION_SIM") {
+    setToggleState("transactionSimEnabled", message.enabled);
+  }
+  
+  // Handle transaction simulation request
+  if (message.type === "SIMULATE_TRANSACTION" && message.transactionData) {
+    getToggleState("transactionSimEnabled").then(async (enabled) => {
+      if (enabled) {
+        try {
+          // Store pending transaction
+          chrome.storage.local.set({ pendingTransaction: message.transactionData });
+          
+          // Send to backend for simulation
+          const response = await fetch("http://localhost:5000/simulate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(message.transactionData),
+          });
+          
+          const result = await response.json();
+          
+          // Clear pending transaction
+          chrome.storage.local.remove("pendingTransaction");
+          
+          // Send result back
+          sendResponse(result);
+          
+          // Also broadcast to popup if open
+          chrome.runtime.sendMessage({
+            type: "TRANSACTION_SIMULATION_RESULT",
+            result: result
+          });
+        } catch (error) {
+          console.error("Transaction simulation error:", error);
+          sendResponse({ error: "Simulation failed" });
+        }
+      } else {
+        sendResponse({ skipped: true, message: "Transaction simulation disabled" });
+      }
+    });
+    return true; // Keep channel open for async
+  }
 
   async function fetchMetadata(url: string): Promise<{
     title: string;

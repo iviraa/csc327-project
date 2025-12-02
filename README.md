@@ -1,16 +1,17 @@
-# CryptoC - Web3 Transaction Security Simulator
+# CryptoC - Web3 Security Extension
 
-A comprehensive Web3 security extension demo that provides real-time threat detection and transaction simulation to protect users from phishing sites, token drainers, and NFT scams.
+A comprehensive Chrome extension that protects users from Web3 threats through machine learning-powered phishing detection and real-time transaction simulation. CryptoC intercepts data between websites and wallets to validate safety before any funds can move.
 
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-green)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ## Overview
 
-**CryptoC** is a two-stage Web3 security system:
+**CryptoC** is a Chrome extension that solves critical Web3 security problems:
 
-1. **Stage 1: URL Analysis** - ML-powered phishing detection (96.5% accuracy)
-2. **Stage 2: Transaction Simulation** - Pre-execution risk analysis with blockchain simulation
+1. **Phishing Protection** - ML-powered URL analysis (96.5% accuracy) detects zero-day phishing sites that static blacklists miss
+2. **Blind Signing Prevention** - Real-time transaction simulation reveals the true financial outcome before users sign, preventing wallet drainers
+3. **Approval Management** - Users can audit and revoke dangerous token approvals that leave wallets vulnerable
 
 ### Key Features
 
@@ -84,14 +85,25 @@ pip install -r requirements.txt
 ./start-frontend.sh
 ```
 
-4. **Access the application**
-- **Demo Application**: Open `frontend/index.html` in your browser, or visit `http://localhost:8000` if using dev server
-- **Backend API**: `http://localhost:5000`
-- **Extension**: See `extension/README.md` for Chrome extension setup
+4. **Install the extension**
+- **Extension**: See `extension/README.md` for Chrome extension setup and installation
+- **Backend API**: `http://localhost:5000` (required for extension)
+- **Demo Application** (optional): Open `frontend/index.html` in your browser, or visit `http://localhost:8000` if using dev server
 
 ## Usage Guide
 
-### Demo Application
+### Chrome Extension
+
+The extension automatically protects you as you browse:
+
+- **Automatic URL Analysis**: Every page you visit is analyzed for phishing threats
+- **Transaction Interception**: Web3 transactions are intercepted and simulated before signing
+- **Risk Warnings**: Clear warnings show financial outcomes and detected threats
+- **Approval Management**: Review and revoke dangerous token approvals
+
+See `extension/README.md` for detailed extension setup and usage instructions.
+
+### Demo Application (Optional)
 
 The frontend is a **standalone demo application** that showcases CryptoC's security features. It includes:
 
@@ -257,10 +269,11 @@ The `/metrics` endpoint returns comprehensive evaluation metrics:
   - All functionality in single file
   - Interactive demonstration of CryptoC security features
 
-### Extension (`extension/`)
+### Extension (`extension/`) - **Main Product**
 
-- Chrome browser extension for real-world usage
-- TypeScript/React codebase
+- Chrome browser extension that provides real-time Web3 security protection
+- Intercepts transactions and analyzes URLs automatically
+- TypeScript/React codebase with Manifest V3
 - See `extension/README.md` for setup instructions
 
 ## Security Features
@@ -290,8 +303,18 @@ The `/metrics` endpoint returns comprehensive evaluation metrics:
 ```bash
 cd backend
 source venv/bin/activate
+
+# Optional: Train XGBoost model (for phishing detection)
+./setup_xgboost.sh
+
+# Optional: Set Alchemy API key (for real-time blockchain simulation)
+export ALCHEMY_API_KEY="your-api-key-here"
+
+# Start backend
 python app.py
 ```
+
+See `backend/XGBOOST_ALCHEMY_GUIDE.md` for detailed setup instructions.
 
 ### Frontend Development
 
